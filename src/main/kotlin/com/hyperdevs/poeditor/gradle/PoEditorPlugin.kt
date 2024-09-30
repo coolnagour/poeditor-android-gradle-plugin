@@ -92,6 +92,7 @@ class PoEditorPlugin : Plugin<Project> {
         androidComponentsExtension.beforeVariants {
             // Add main extension since we have the main extension evaluated here
             addMainPoEditorTask(project, mainExtension)
+
             addUploadPoEditorTask(project, mainExtension)
 
             val configs = getConfigs(it.productFlavors.map { it.second }, it.buildType)
@@ -214,8 +215,10 @@ class PoEditorPlugin : Plugin<Project> {
                 project.registerNewTask<UploadPoEditorStringsTask>(
                     mainPoEditorTaskName,
                     mainPoEditorTaskDescription,
-                    PLUGIN_GROUP,
-                    arrayOf(mainPoEditorExtension))
+                    PLUGIN_GROUP
+                ) {
+                    configureTask(mainPoEditorExtension)
+                }
             }
         }
     }
@@ -299,8 +302,10 @@ class PoEditorPlugin : Plugin<Project> {
                         val newConfigPoEditorTask = project.registerNewTask<UploadPoEditorStringsTask>(
                             configTaskName,
                             getPoEditorDescriptionForConfig(configName),
-                            PLUGIN_GROUP,
-                            arrayOf(mergedConfigExtension))
+                            PLUGIN_GROUP
+                        ) {
+                            configureTask(mergedConfigExtension)
+                        }
 
                         configPoEditorTaskProvidersMap.put(configName, newConfigPoEditorTask)
                     }
@@ -332,6 +337,7 @@ class PoEditorPlugin : Plugin<Project> {
     }
 
     private fun getPoEditorTaskName(configName: ConfigName = "") = "import${configName.capitalize()}PoEditorStrings"
+
     private fun getUploadPoEditorTaskName(configName: ConfigName = "") = "upload${configName.capitalize()}PoEditorStrings"
 
     private fun getMainPoEditorDescription(): String = """

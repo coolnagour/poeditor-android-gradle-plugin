@@ -51,30 +51,11 @@ object PoEditorStringsUploader {
         .add(Date::class.java, PoEditorDateJsonAdapter())
         .build()
 
-    private const val CONNECT_TIMEOUT_SECONDS = 60L
-    private const val READ_TIMEOUT_SECONDS = 60L
-    private const val WRITE_TIMEOUT_SECONDS = 60L
+    private lateinit var okHttpClient: OkHttpClient
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .callTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
-            override fun log(message: String) {
-                logger.debug(message)
-            }
-        })
-            .setLevel(HttpLoggingInterceptor.Level.BODY))
-        .build()
+    private lateinit var retrofit: Retrofit
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl(POEDITOR_API_URL.toHttpUrl())
-        .client(okHttpClient)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .build()
-
-    private val poEditorApi: PoEditorApi = retrofit.create(PoEditorApi::class.java)
+    private lateinit var poEditorApi: PoEditorApi
 
     /**
      * Uploads PoEditor strings.
@@ -87,9 +68,31 @@ object PoEditorStringsUploader {
                               resDirPath: String,
                               tags: List<String>,
                               languageValuesOverridePathMap: Map<String, String>,
-                              resFileName: String) {
+                              resFileName: String,
+                              timeout: Long) {
         try {
-            logger.lifecycle("WRITE_TIMEOUT_SECONDS: $WRITE_TIMEOUT_SECONDS")
+            okHttpClient = OkHttpClient.Builder()
+                .connectTimeout(timeout, TimeUnit.SECONDS)
+                .readTimeout(timeout, TimeUnit.SECONDS)
+                .writeTimeout(timeout, TimeUnit.SECONDS)
+                .callTimeout(timeout, TimeUnit.SECONDS)
+                .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
+                    override fun log(message: String) {
+                        logger.debug(message)
+                    }
+                })
+                    .setLevel(HttpLoggingInterceptor.Level.BODY))
+                .build()
+
+            retrofit = Retrofit.Builder()
+                .baseUrl(POEDITOR_API_URL.toHttpUrl())
+                .client(okHttpClient)
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
+                .build()
+
+            poEditorApi = retrofit.create(PoEditorApi::class.java)
+
+            logger.lifecycle("WRITE_TIMEOUT_SECONDS: $timeout")
 
             val poEditorApiController = PoEditorApiControllerImpl(apiToken, moshi, poEditorApi)
 

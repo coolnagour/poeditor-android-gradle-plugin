@@ -161,6 +161,15 @@ open class PoEditorPluginExtension @Inject constructor(objects: ObjectFactory, p
     val untranslatableStringsRegex: Property<String?> = objects.property(String::class.java)
 
     /**
+     * The timeout for uploading the strings to PoEditor.
+     *
+     * Defaults to 60s.
+     */
+    @get:Optional
+    @get:Input
+    val httpTimeout: Property<Long> = objects.property(Long::class.java)
+
+    /**
      * Sets the configuration as enabled or not.
      *
      * NOTE: added for Gradle Groovy DSL compatibility. Check the note on

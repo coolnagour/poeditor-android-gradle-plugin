@@ -35,6 +35,7 @@ object DefaultValues {
     internal val RES_FILE_NAME = "strings"
     internal val UNQUOTED = false
     internal val UNESCAPE_HTML_TAGS = true
+    internal val TIMEOUT = 60L
 
     /**
      * Apply the default convention to a [PoEditorPluginExtension].

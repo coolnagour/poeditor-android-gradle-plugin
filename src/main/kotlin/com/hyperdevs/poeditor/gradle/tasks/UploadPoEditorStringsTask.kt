@@ -1,3 +1,4 @@
+@file:Suppress("NoUnusedImports", "UnusedImports") // Needed because detekt removes the "assign" import
 /*
  * Copyright 2021 HyperDevs
  *
@@ -18,20 +19,96 @@
 
 package com.hyperdevs.poeditor.gradle.tasks
 
+import com.hyperdevs.poeditor.gradle.DefaultValues
 import com.hyperdevs.poeditor.gradle.PoEditorPluginExtension
 import com.hyperdevs.poeditor.gradle.PoEditorStringsUploader
 import com.hyperdevs.poeditor.gradle.utils.DEFAULT_PLUGIN_NAME
 import com.hyperdevs.poeditor.gradle.utils.POEDITOR_CONFIG_NAME
+import com.hyperdevs.poeditor.gradle.utils.getResourceDirectory
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.assign
 import javax.inject.Inject
 
 /**
  * Task that:
  * 1. Uploads default language terms to POEditor
  */
-abstract class UploadPoEditorStringsTask
-@Inject constructor(private val extension: PoEditorPluginExtension) : DefaultTask() {
+abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
+    /**
+     * PoEditor API token.
+     *
+     * Must be present in order to run the plugin.
+     */
+    @get:Input
+    abstract val apiToken: Property<String>
+
+    /**
+     * PoEditor project ID.
+     *
+     * Must be present in order to run the plugin.
+     */
+    @get:Input
+    abstract val projectId: Property<Int>
+
+    /**
+     * Default language of the project, in ISO-2 format.
+     *
+     * Defaults to 'en' if not defined.
+     */
+    @get:Optional
+    @get:Input
+    abstract val defaultLang: Property<String>
+
+    /**
+     * Default resources path for the module where the strings should be put in.
+     *
+     * Defaults to the module with the `com.android.application` plugin.
+     */
+    @get:Optional
+    @get:Input
+    abstract val defaultResPath: Property<String>
+
+    /**
+     * File name of the string resource files.
+     *
+     * Defaults to "strings" if not defined.
+     */
+    @get:Optional
+    @get:Input
+    abstract val resFileName: Property<String>
+
+    /**
+     * Tags to filter downloaded strings with, previously declared in PoEditor.
+     *
+     * Defaults to an empty list of tags if not present.
+     */
+    @get:Optional
+    @get:Input
+    abstract val tags: ListProperty<String>
+
+    /**
+     * Map of languages to override their default values folder.
+     *
+     * Defaults to an empty map of language overrides map.
+     */
+    @get:Optional
+    @get:Input
+    abstract val languageValuesOverridePathMap: MapProperty<String, String>
+
+    /**
+     * The timeout for uploading the strings to PoEditor.
+     *
+     * Defaults to 60s.
+     */
+    @get:Optional
+    @get:Input
+    abstract val httpTimeout: Property<Long>
 
     /**
      * Main task entrypoint.
@@ -39,27 +116,18 @@ abstract class UploadPoEditorStringsTask
     @TaskAction
     @Suppress("ThrowsCount")
     fun uploadPoEditorStrings() {
+        // Ensure that mandatory parameters are defined
         val apiToken: String
         val projectId: Int
-        val defaultLang: String
-        val defaultResPath: String
-        val tags: List<String>
-        val languageOverridePathMap: Map<String, String>
-        val resFileName: String
 
         try {
-            apiToken = extension.apiToken.get()
-            projectId = extension.projectId.get()
-            defaultLang = extension.defaultLang.get()
-            defaultResPath = extension.defaultResPath.get()
-            tags = extension.tags.get()
-            languageOverridePathMap = extension.languageValuesOverridePathMap.get()
-            resFileName = extension.resFileName.get()
+            apiToken = this.apiToken.get()
+            projectId = this.projectId.get()
         } catch (e: Exception) {
-            logger.error("Upload configuration failed", e)
+            logger.error("Import configuration failed", e)
 
             throw IllegalArgumentException(
-                "You don't have the config '${extension.name}' properly set-up in your '$POEDITOR_CONFIG_NAME' block " +
+                "You don't have the config properly set-up in your '$POEDITOR_CONFIG_NAME' block " +
                 "or you don't have your main '$DEFAULT_PLUGIN_NAME' config properly set-up.\n" +
                 "Please review the input parameters of both blocks and try again.")
         }
@@ -67,12 +135,24 @@ abstract class UploadPoEditorStringsTask
         PoEditorStringsUploader.uploadPoEditorStrings(
             apiToken,
             projectId,
-            defaultLang,
-            defaultLang,
-            defaultResPath,
-            tags,
-            languageOverridePathMap,
-            resFileName
+            defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
+            defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
+            defaultResPath.getOrElse(getResourceDirectory(project, DefaultValues.MAIN_CONFIG_NAME).absolutePath),
+            tags.getOrElse(DefaultValues.TAGS),
+            languageValuesOverridePathMap.getOrElse(DefaultValues.LANGUAGE_VALUES_OVERRIDE_PATH_MAP),
+            resFileName.getOrElse(DefaultValues.RES_FILE_NAME),
+            httpTimeout.getOrElse(DefaultValues.TIMEOUT)
         )
+    }
+
+    internal fun configureTask(extension: PoEditorPluginExtension) {
+        this.apiToken = extension.apiToken
+        this.projectId = extension.projectId
+        this.defaultLang = extension.defaultLang
+        this.defaultResPath = extension.defaultResPath
+        this.resFileName = extension.resFileName
+        this.tags = extension.tags
+        this.languageValuesOverridePathMap = extension.languageValuesOverridePathMap
+        this.httpTimeout = extension.httpTimeout
     }
 }
