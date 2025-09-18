@@ -32,6 +32,7 @@ open class PoEditorResponse<T : Any>(open val response: ResponseStatus, open val
 data class ResponseStatus(val status: String,
                           val code: String,
                           val message: String) {
+    @Suppress("UndocumentedPublicClass")
     companion object {
         const val STATUS_SUCCESS = "success"
         const val STATUS_FAIL = "fail"
@@ -83,6 +84,7 @@ enum class ExportType {
     ARB,
     RISE_360_XLIFF;
 
+    @Suppress("UndocumentedPublicClass")
     companion object {
         /** Returns the enum value associated to a string value. */
         fun from(value: String) =
@@ -109,6 +111,7 @@ enum class FilterType {
     PROOFREAD,
     NOT_PROOFREAD;
 
+    @Suppress("UndocumentedPublicClass")
     companion object {
         /** Returns the enum value associated to a string value. */
         fun from(value: String) =
@@ -129,6 +132,7 @@ enum class OrderType {
     NONE,
     TERMS;
 
+    @Suppress("UndocumentedPublicClass")
     companion object {
         /** Returns the enum value associated to a string value. */
         fun from(value: String) =
@@ -159,6 +163,7 @@ enum class UpdatingType {
     TERMS_TRANSLATIONS,
     TRANSLATIONS;
 
+    @Suppress("UndocumentedPublicClass")
     companion object {
         /** Returns the enum value associated to a string value. */
         fun from(value: String) =

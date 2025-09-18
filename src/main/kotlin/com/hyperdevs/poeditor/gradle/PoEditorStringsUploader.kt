@@ -124,7 +124,7 @@ object PoEditorStringsUploader {
                     code = languageCode,
                     updating = UpdatingType.TERMS_TRANSLATIONS,
                     file = mainValuesFile,
-                    overwrite = true,
+                    overwrite = false,
                     syncTerms = false,
                     fuzzyTrigger = true,
                     tags = tags
@@ -163,20 +163,20 @@ object PoEditorStringsUploader {
 
         val updateResult = poEditorApiController.upsertTerms(
             projectId = projectId,
-            fuzzyTrigger = true,
+            fuzzyTrigger = false,
             terms = updatedTerms.filter { !it.tags.isNullOrEmpty() }
         )
         logger.lifecycle("Updated terms: $updateResult")
 
-        updatedTerms.filter { it.tags.isNullOrEmpty() }.run {
-            if (isNotEmpty()) {
-                val deleteResult = poEditorApiController.deleteTerms(
-                    projectId = projectId,
-                    terms = this
-                )
-                logger.lifecycle("Deleted terms: $deleteResult")
-            }
-        }
+//        updatedTerms.filter { it.tags.isNullOrEmpty() }.run {
+//            if (isNotEmpty()) {
+//                val deleteResult = poEditorApiController.deleteTerms(
+//                    projectId = projectId,
+//                    terms = this
+//                )
+//                logger.lifecycle("Deleted terms: $deleteResult")
+//            }
+//        }
     }
 
     private fun Collection<ProjectLanguage>.joinAndFormat(transform: ((ProjectLanguage) -> CharSequence)) =

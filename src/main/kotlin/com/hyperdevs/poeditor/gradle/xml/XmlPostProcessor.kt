@@ -26,8 +26,9 @@ import org.w3c.dom.*
 /**
  * Class that handles XML transformation.
  */
-@Suppress("StringLiteralDuplication")
+@Suppress("StringLiteralDuplication", "UndocumentedPublicClass")
 class XmlPostProcessor {
+    @Suppress("UndocumentedPublicClass")
     companion object {
         private val DEFAULT_ENCODING = Charsets.UTF_8
         private val VARIABLE_REGEX = Regex("""\{(\d*)\{(.*?)\}\}""")
