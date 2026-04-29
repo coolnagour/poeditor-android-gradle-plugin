@@ -69,7 +69,8 @@ object PoEditorStringsUploader {
                               tags: List<String>,
                               languageValuesOverridePathMap: Map<String, String>,
                               resFileName: String,
-                              timeout: Long) {
+                              timeout: Long,
+                              updateDefault: Boolean) {
         try {
             okHttpClient = OkHttpClient.Builder()
                 .connectTimeout(timeout, TimeUnit.SECONDS)
@@ -118,13 +119,13 @@ object PoEditorStringsUploader {
 
                 // Retrieve translation file URL for the given language and for the "android_strings" type,
                 // acknowledging passed tags if present
-                logger.lifecycle("Uploading strings file for language code: $languageCode")
+                logger.lifecycle("Uploading strings file for language code: $languageCode (updateDefault=$updateDefault)")
                 val result = poEditorApiController.uploadProjectLanguage(
                     projectId = projectId,
                     code = languageCode,
                     updating = UpdatingType.TERMS_TRANSLATIONS,
                     file = mainValuesFile,
-                    overwrite = false,
+                    overwrite = updateDefault,
                     syncTerms = false,
                     fuzzyTrigger = true,
                     tags = tags

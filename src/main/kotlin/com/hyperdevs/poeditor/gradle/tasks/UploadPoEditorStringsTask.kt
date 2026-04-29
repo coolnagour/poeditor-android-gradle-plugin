@@ -32,6 +32,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.assign
 import javax.inject.Inject
 
@@ -111,6 +112,18 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
     abstract val httpTimeout: Property<Long>
 
     /**
+     * Whether to overwrite default language values on PoEditor with the local ones.
+     *
+     * Defaults to false. Can be enabled from the CLI with `--update-default`.
+     */
+    @get:Input
+    @set:Option(
+        option = "update-default",
+        description = "Also overwrite default language values on PoEditor with the local ones."
+    )
+    var updateDefault: Boolean = false
+
+    /**
      * Main task entrypoint.
      */
     @TaskAction
@@ -141,7 +154,8 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
             tags.getOrElse(DefaultValues.TAGS),
             languageValuesOverridePathMap.getOrElse(DefaultValues.LANGUAGE_VALUES_OVERRIDE_PATH_MAP),
             resFileName.getOrElse(DefaultValues.RES_FILE_NAME),
-            httpTimeout.getOrElse(DefaultValues.TIMEOUT)
+            httpTimeout.getOrElse(DefaultValues.TIMEOUT),
+            updateDefault
         )
     }
 
