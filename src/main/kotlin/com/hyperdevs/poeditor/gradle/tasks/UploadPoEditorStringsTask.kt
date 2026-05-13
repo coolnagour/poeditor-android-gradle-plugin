@@ -32,6 +32,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.assign
 import javax.inject.Inject
 
@@ -111,6 +112,20 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
     abstract val httpTimeout: Property<Long>
 
     /**
+     * Whether to overwrite the Arabic (ar-ae) translations on PoEditor with the local ones from
+     * the `values-ar-rAE` folder. RTL handling on the PoEditor dashboard is unreliable, so the
+     * local file is treated as the source of truth when this flag is set.
+     *
+     * Defaults to false. Can be enabled from the CLI with `--overwrite-arabic`.
+     */
+    @get:Input
+    @set:Option(
+        option = "overwrite-arabic",
+        description = "Also overwrite Arabic (ar-ae) translations on PoEditor with local values-ar-rAE."
+    )
+    var overwriteArabic: Boolean = false
+
+    /**
      * Main task entrypoint.
      */
     @TaskAction
@@ -141,7 +156,8 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
             tags.getOrElse(DefaultValues.TAGS),
             languageValuesOverridePathMap.getOrElse(DefaultValues.LANGUAGE_VALUES_OVERRIDE_PATH_MAP),
             resFileName.getOrElse(DefaultValues.RES_FILE_NAME),
-            httpTimeout.getOrElse(DefaultValues.TIMEOUT)
+            httpTimeout.getOrElse(DefaultValues.TIMEOUT),
+            overwriteArabic
         )
     }
 

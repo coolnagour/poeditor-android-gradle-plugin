@@ -113,14 +113,14 @@ tasks {
     getByPath("compileKotlin").dependsOn(installGitHooks)
 }
 
-group = "com.github.hyperdevs-team"
+group = "com.github.coolnagour"
 version = androidGitVersion.name()
 
 publishing {
     publications {
         // Edit the `pluginMaven` publication, which is the name for the default publication task of the `java-gradle-plugin`
         register<MavenPublication>("pluginMaven") {
-            groupId = "com.github.hyperdevs-team"
+            groupId = "com.github.coolnagour"
             artifactId = "poeditor-android-gradle-plugin"
 
             pom {
