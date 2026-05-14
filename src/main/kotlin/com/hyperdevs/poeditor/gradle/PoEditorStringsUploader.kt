@@ -60,8 +60,6 @@ object PoEditorStringsUploader {
 
     private lateinit var poEditorApi: PoEditorApi
 
-    private const val ARABIC_LANG_CODE = "ar-ae"
-
     /**
      * Uploads PoEditor strings.
      */
@@ -75,8 +73,9 @@ object PoEditorStringsUploader {
         tags: List<String>,
         languageValuesOverridePathMap: Map<String, String>,
         resFileName: String,
+        updateDefault: Boolean,
         timeout: Long,
-        overwriteArabic: Boolean
+        overwriteLangs: List<String>
     ) {
         try {
             okHttpClient = OkHttpClient.Builder()
@@ -113,7 +112,10 @@ object PoEditorStringsUploader {
                 var valuesFolderName = "values"
 
                 val valuesModifier = createValuesModifierFromLangCode(languageCode)
-                if (valuesModifier != defaultLang) valuesFolderName = "$valuesFolderName-$valuesModifier"
+                if (valuesModifier != defaultLang) {
+                    valuesFolderName =
+                    "$valuesFolderName-$valuesModifier"
+                }
 
                 baseValuesDir = File(File(resDirPath), valuesFolderName)
             }
@@ -124,13 +126,13 @@ object PoEditorStringsUploader {
 
                 // Retrieve translation file URL for the given language and for the "android_strings" type,
                 // acknowledging passed tags if present
-                logger.lifecycle("Uploading strings file for language code: $languageCode")
+                logger.lifecycle("Uploading strings file for language code: $languageCode (updateDefault=$updateDefault)")
                 val result = poEditorApiController.uploadProjectLanguage(
                     projectId = projectId,
                     code = languageCode,
                     updating = UpdatingType.TERMS_TRANSLATIONS,
                     file = mainValuesFile,
-                    overwrite = false,
+                    overwrite = updateDefault,
                     syncTerms = false,
                     fuzzyTrigger = true,
                     tags = tags
@@ -139,10 +141,11 @@ object PoEditorStringsUploader {
             }
 //            val tabletValuesFile = File("${baseValuesDir.absolutePath}-$TABLET_RES_FOLDER_SUFFIX", "$resFileName.xml")
 
-            if (overwriteArabic) {
-                uploadArabicOverrides(
+            overwriteLangs.forEach { langCode ->
+                overwriteLanguageTranslations(
                     projectId = projectId,
                     defaultLang = defaultLang,
+                    langCode = langCode,
                     resDirPath = resDirPath,
                     resFileName = resFileName,
                     tags = tags,
@@ -151,8 +154,10 @@ object PoEditorStringsUploader {
                 )
             }
         } catch (e: Exception) {
-            logger.error("An error happened when retrieving strings from project. " +
-                         "Please review the plug-in's input parameters and try again")
+            logger.error(
+                "An error happened when retrieving strings from project. " +
+                "Please review the plug-in's input parameters and try again"
+            )
             throw e
         }
     }
@@ -203,37 +208,36 @@ object PoEditorStringsUploader {
     }
 
     @Suppress("LongParameterList")
-    private fun uploadArabicOverrides(
+    private fun overwriteLanguageTranslations(
         projectId: Int,
         defaultLang: String,
+        langCode: String,
         resDirPath: String,
         resFileName: String,
         tags: List<String>,
         languageValuesOverridePathMap: Map<String, String>,
         poEditorApiController: PoEditorApiControllerImpl
     ) {
-        val arabicValuesDir = languageValuesOverridePathMap[ARABIC_LANG_CODE]?.let { File(it) }
-                              ?: run {
-                                  val valuesModifier =
-                                      createValuesModifierFromLangCode(ARABIC_LANG_CODE)
-                                  val folder =
-                                      if (valuesModifier == defaultLang) "values" else "values-$valuesModifier"
-                                  File(File(resDirPath), folder)
-                              }
+        val valuesDir = languageValuesOverridePathMap[langCode]?.let { File(it) }
+            ?: run {
+                val valuesModifier = createValuesModifierFromLangCode(langCode)
+                val folder = if (valuesModifier == defaultLang) "values" else "values-$valuesModifier"
+                File(File(resDirPath), folder)
+            }
 
-        val arabicFile = File(arabicValuesDir, "$resFileName.xml")
-        if (!arabicFile.exists()) {
-            logger.lifecycle("Skipping Arabic overwrite: file not found at ${arabicFile.absolutePath}")
+        val sourceFile = File(valuesDir, "$resFileName.xml")
+        if (!sourceFile.exists()) {
+            logger.warn("Skipping overwrite for '$langCode': file not found at ${sourceFile.absolutePath}")
             return
         }
 
         // Strip empty <string> entries so a half-finished local file can't blank good PoEditor translations.
-        val fileToUpload = withoutEmptyStrings(arabicFile)
+        val fileToUpload = withoutEmptyStrings(sourceFile)
 
-        logger.lifecycle("Overwriting Arabic translations on PoEditor from ${arabicFile.absolutePath}")
+        logger.lifecycle("Overwriting '$langCode' translations on PoEditor from ${sourceFile.absolutePath}")
         val result = poEditorApiController.uploadProjectLanguage(
             projectId = projectId,
-            code = ARABIC_LANG_CODE,
+            code = langCode,
             updating = UpdatingType.TRANSLATIONS,
             file = fileToUpload,
             overwrite = true,
@@ -241,9 +245,9 @@ object PoEditorStringsUploader {
             fuzzyTrigger = false,
             tags = tags
         )
-        logger.lifecycle("Arabic overwrite result: $result")
+        logger.lifecycle("'$langCode' overwrite result: $result")
 
-        if (fileToUpload != arabicFile) fileToUpload.delete()
+        if (fileToUpload != sourceFile) fileToUpload.delete()
     }
 
     private fun withoutEmptyStrings(source: File): File {
@@ -256,9 +260,9 @@ object PoEditorStringsUploader {
         if (emptyNodes.isEmpty()) return source
 
         emptyNodes.forEach { it.parentNode.removeChild(it) }
-        logger.lifecycle("Filtered ${emptyNodes.size} empty <string> entry/entries before Arabic upload")
+        logger.lifecycle("Filtered ${emptyNodes.size} empty <string> entry/entries before upload")
 
-        val tempFile = File.createTempFile("poeditor-arabic-", ".xml").apply { deleteOnExit() }
+        val tempFile = File.createTempFile("poeditor-overwrite-", ".xml").apply { deleteOnExit() }
         TransformerFactory.newInstance().newTransformer()
             .transform(DOMSource(document), StreamResult(tempFile))
         return tempFile
