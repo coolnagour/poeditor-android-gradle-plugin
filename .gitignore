@@ -138,3 +138,6 @@ gradle-app.setting
 
 # Local properties file
 /local.properties
+
+# macOS
+.DS_Store
