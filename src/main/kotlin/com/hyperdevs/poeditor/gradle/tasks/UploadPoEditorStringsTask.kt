@@ -124,6 +124,25 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
     var updateDefault: Boolean = false
 
     /**
+     * Comma-separated PoEditor language codes whose translations should be overwritten on PoEditor
+     * with the local resource values (e.g. `"ar-ae"` or `"ar-ae,fr-fr"`). For each listed code the
+     * matching local `values-<modifier>` folder is treated as the source of truth.
+     *
+     * Typical use: locales whose handling on the PoEditor dashboard is unreliable
+     * (e.g. RTL languages, special-character locales). See the README for a list of common codes.
+     *
+     * Defaults to empty (no overwrite). Can be set from the CLI with
+     * `--overwrite-langs ar-ae,fr-fr`.
+     */
+    @get:Input
+    @set:Option(
+        option = "overwrite-langs",
+        description = "Comma-separated PoEditor language codes whose translations should be overwritten " +
+                      "with local values (e.g. --overwrite-langs ar-ae,fr-fr)."
+    )
+    var overwriteLangs: String = ""
+
+    /**
      * Main task entrypoint.
      */
     @TaskAction
@@ -145,17 +164,23 @@ abstract class UploadPoEditorStringsTask @Inject constructor() : DefaultTask() {
                 "Please review the input parameters of both blocks and try again.")
         }
 
+        val overwriteLangsList = overwriteLangs.split(",")
+            .map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+
         PoEditorStringsUploader.uploadPoEditorStrings(
-            apiToken,
-            projectId,
-            defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
-            defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
-            defaultResPath.getOrElse(getResourceDirectory(project, DefaultValues.MAIN_CONFIG_NAME).absolutePath),
-            tags.getOrElse(DefaultValues.TAGS),
-            languageValuesOverridePathMap.getOrElse(DefaultValues.LANGUAGE_VALUES_OVERRIDE_PATH_MAP),
-            resFileName.getOrElse(DefaultValues.RES_FILE_NAME),
-            httpTimeout.getOrElse(DefaultValues.TIMEOUT),
-            updateDefault
+            apiToken = apiToken,
+            projectId = projectId,
+            defaultLang = defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
+            languageCode = defaultLang.getOrElse(DefaultValues.DEFAULT_LANG),
+            resDirPath = defaultResPath.getOrElse(getResourceDirectory(project, DefaultValues.MAIN_CONFIG_NAME).absolutePath),
+            tags = tags.getOrElse(DefaultValues.TAGS),
+            languageValuesOverridePathMap = languageValuesOverridePathMap.getOrElse(DefaultValues.LANGUAGE_VALUES_OVERRIDE_PATH_MAP),
+            resFileName = resFileName.getOrElse(DefaultValues.RES_FILE_NAME),
+            updateDefault = updateDefault,
+            timeout = httpTimeout.getOrElse(DefaultValues.TIMEOUT),
+            overwriteLangs = overwriteLangsList
         )
     }
 

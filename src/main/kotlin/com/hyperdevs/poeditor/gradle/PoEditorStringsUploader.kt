@@ -39,6 +39,9 @@ import java.io.FileInputStream
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 /**
  * Main class that uploads android xml string files to PoEditor.
@@ -60,29 +63,30 @@ object PoEditorStringsUploader {
     /**
      * Uploads PoEditor strings.
      */
-    @Suppress("LongParameterList")
-    fun uploadPoEditorStrings(apiToken: String,
-                              projectId: Int,
-                              defaultLang: String,
-                              languageCode: String,
-                              resDirPath: String,
-                              tags: List<String>,
-                              languageValuesOverridePathMap: Map<String, String>,
-                              resFileName: String,
-                              timeout: Long,
-                              updateDefault: Boolean) {
+    @Suppress("LongParameterList", "LongMethod")
+    fun uploadPoEditorStrings(
+        apiToken: String,
+        projectId: Int,
+        defaultLang: String,
+        languageCode: String,
+        resDirPath: String,
+        tags: List<String>,
+        languageValuesOverridePathMap: Map<String, String>,
+        resFileName: String,
+        updateDefault: Boolean,
+        timeout: Long,
+        overwriteLangs: List<String>
+    ) {
         try {
             okHttpClient = OkHttpClient.Builder()
                 .connectTimeout(timeout, TimeUnit.SECONDS)
                 .readTimeout(timeout, TimeUnit.SECONDS)
                 .writeTimeout(timeout, TimeUnit.SECONDS)
                 .callTimeout(timeout, TimeUnit.SECONDS)
-                .addInterceptor(HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
-                    override fun log(message: String) {
-                        logger.debug(message)
-                    }
-                })
-                    .setLevel(HttpLoggingInterceptor.Level.BODY))
+                .addInterceptor(
+                    HttpLoggingInterceptor { message -> logger.debug(message) }
+                        .setLevel(HttpLoggingInterceptor.Level.BODY)
+                )
                 .build()
 
             retrofit = Retrofit.Builder()
@@ -101,14 +105,17 @@ object PoEditorStringsUploader {
             logger.lifecycle("Get project languages xml files... $apiToken")
 
             // First check if we have passed a default "values" folder for the given language
-            var baseValuesDir: File? = languageValuesOverridePathMap?.get(languageCode)?.let { File(it) }
+            var baseValuesDir: File? = languageValuesOverridePathMap[languageCode]?.let { File(it) }
 
             // If we haven't passed a default base values directory, compose the base values folder
             if (baseValuesDir == null) {
                 var valuesFolderName = "values"
 
                 val valuesModifier = createValuesModifierFromLangCode(languageCode)
-                if (valuesModifier != defaultLang) valuesFolderName = "$valuesFolderName-$valuesModifier"
+                if (valuesModifier != defaultLang) {
+                    valuesFolderName =
+                    "$valuesFolderName-$valuesModifier"
+                }
 
                 baseValuesDir = File(File(resDirPath), valuesFolderName)
             }
@@ -133,14 +140,34 @@ object PoEditorStringsUploader {
                 logger.lifecycle("Uploaded file result : $result")
             }
 //            val tabletValuesFile = File("${baseValuesDir.absolutePath}-$TABLET_RES_FOLDER_SUFFIX", "$resFileName.xml")
+
+            overwriteLangs.forEach { langCode ->
+                overwriteLanguageTranslations(
+                    projectId = projectId,
+                    defaultLang = defaultLang,
+                    langCode = langCode,
+                    resDirPath = resDirPath,
+                    resFileName = resFileName,
+                    tags = tags,
+                    languageValuesOverridePathMap = languageValuesOverridePathMap,
+                    poEditorApiController = poEditorApiController
+                )
+            }
         } catch (e: Exception) {
-            logger.error("An error happened when retrieving strings from project. " +
-                         "Please review the plug-in's input parameters and try again")
+            logger.error(
+                "An error happened when retrieving strings from project. " +
+                "Please review the plug-in's input parameters and try again"
+            )
             throw e
         }
     }
 
-    private fun syncTerms(mainValuesFile: File, projectId: Int, poEditorApiController: PoEditorApiControllerImpl, tags: List<String>) {
+    private fun syncTerms(
+        mainValuesFile: File,
+        projectId: Int,
+        poEditorApiController: PoEditorApiControllerImpl,
+        tags: List<String>
+    ) {
         val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
             .parse(FileInputStream(mainValuesFile))
 
@@ -178,6 +205,67 @@ object PoEditorStringsUploader {
 //                logger.lifecycle("Deleted terms: $deleteResult")
 //            }
 //        }
+    }
+
+    @Suppress("LongParameterList")
+    private fun overwriteLanguageTranslations(
+        projectId: Int,
+        defaultLang: String,
+        langCode: String,
+        resDirPath: String,
+        resFileName: String,
+        tags: List<String>,
+        languageValuesOverridePathMap: Map<String, String>,
+        poEditorApiController: PoEditorApiControllerImpl
+    ) {
+        val valuesDir = languageValuesOverridePathMap[langCode]?.let { File(it) }
+            ?: run {
+                val valuesModifier = createValuesModifierFromLangCode(langCode)
+                val folder = if (valuesModifier == defaultLang) "values" else "values-$valuesModifier"
+                File(File(resDirPath), folder)
+            }
+
+        val sourceFile = File(valuesDir, "$resFileName.xml")
+        if (!sourceFile.exists()) {
+            logger.warn("Skipping overwrite for '$langCode': file not found at ${sourceFile.absolutePath}")
+            return
+        }
+
+        // Strip empty <string> entries so a half-finished local file can't blank good PoEditor translations.
+        val fileToUpload = withoutEmptyStrings(sourceFile)
+
+        logger.lifecycle("Overwriting '$langCode' translations on PoEditor from ${sourceFile.absolutePath}")
+        val result = poEditorApiController.uploadProjectLanguage(
+            projectId = projectId,
+            code = langCode,
+            updating = UpdatingType.TRANSLATIONS,
+            file = fileToUpload,
+            overwrite = true,
+            syncTerms = false,
+            fuzzyTrigger = false,
+            tags = tags
+        )
+        logger.lifecycle("'$langCode' overwrite result: $result")
+
+        if (fileToUpload != sourceFile) fileToUpload.delete()
+    }
+
+    private fun withoutEmptyStrings(source: File): File {
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(FileInputStream(source))
+
+        val emptyNodes = document.documentElement.getElementsByTagName("string").asList()
+            .filter { it.textContent.isNullOrBlank() }
+
+        if (emptyNodes.isEmpty()) return source
+
+        emptyNodes.forEach { it.parentNode.removeChild(it) }
+        logger.lifecycle("Filtered ${emptyNodes.size} empty <string> entry/entries before upload")
+
+        val tempFile = File.createTempFile("poeditor-overwrite-", ".xml").apply { deleteOnExit() }
+        TransformerFactory.newInstance().newTransformer()
+            .transform(DOMSource(document), StreamResult(tempFile))
+        return tempFile
     }
 
     private fun Collection<ProjectLanguage>.joinAndFormat(transform: ((ProjectLanguage) -> CharSequence)) =

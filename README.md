@@ -639,6 +639,109 @@ Keep in mind that the regex must match the whole string name and not just a part
 [`CharSequence.matches(Regex)`](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.text/matches.html) from the 
 Kotlin API.
 
+## Uploading strings to PoEditor
+
+In addition to importing, this fork can push the project's default-language `strings.xml` up to
+PoEditor and optionally overwrite translations for selected non-default languages.
+
+Run the upload task with:
+
+```
+./gradlew uploadPoEditorStrings
+```
+
+By default this only adds new terms found locally — existing translations on PoEditor are left
+untouched.
+
+### Overwriting translations for specific languages
+
+If a translation on the PoEditor dashboard is unreliable for a given locale (e.g. RTL languages
+like Arabic, or special-character locales), you can force the local file to be the source of truth
+for that language with `--overwrite-langs`. It accepts a comma-separated list of PoEditor language
+codes:
+
+```
+./gradlew uploadPoEditorStrings --overwrite-langs ar-ae
+./gradlew uploadPoEditorStrings --overwrite-langs ar-ae,fr-fr,he
+```
+
+For each listed code, the plug-in:
+- Looks up the matching `values-<modifier>` folder (e.g. `values-ar-rAE` for `ar-ae`), honoring
+  any path in `languageValuesOverridePathMap`.
+- Strips empty `<string>` entries so a half-finished local file can't blank a good PoEditor value.
+- Uploads with `updating=translations`, `overwrite=true`, `fuzzy_trigger=false` — only that
+  language is touched, no other languages are flagged as needing review, and no terms are deleted.
+
+If the file is missing for a listed code, the plug-in logs a warning and skips it.
+
+### Common PoEditor language codes
+
+PoEditor language codes are lowercase, region-suffixed with a hyphen. The exact list per project
+is in PoEditor's dashboard, but these are the most common codes:
+
+| Code      | Language                  | Android folder        |
+|-----------|---------------------------|------------------------|
+| `ar`      | Arabic                    | `values-ar`           |
+| `ar-ae`   | Arabic (UAE)              | `values-ar-rAE`       |
+| `ar-eg`   | Arabic (Egypt)            | `values-ar-rEG`       |
+| `ar-sa`   | Arabic (Saudi Arabia)     | `values-ar-rSA`       |
+| `bg`      | Bulgarian                 | `values-bg`           |
+| `bn`      | Bengali                   | `values-bn`           |
+| `ca`      | Catalan                   | `values-ca`           |
+| `cs`      | Czech                     | `values-cs`           |
+| `da`      | Danish                    | `values-da`           |
+| `de`      | German                    | `values-de`           |
+| `de-at`   | German (Austria)          | `values-de-rAT`       |
+| `de-ch`   | German (Switzerland)      | `values-de-rCH`       |
+| `el`      | Greek                     | `values-el`           |
+| `en`      | English                   | `values` / `values-en`|
+| `en-au`   | English (Australia)       | `values-en-rAU`       |
+| `en-ca`   | English (Canada)          | `values-en-rCA`       |
+| `en-gb`   | English (United Kingdom)  | `values-en-rGB`       |
+| `en-us`   | English (United States)   | `values-en-rUS`       |
+| `es`      | Spanish                   | `values-es`           |
+| `es-ar`   | Spanish (Argentina)       | `values-es-rAR`       |
+| `es-mx`   | Spanish (Mexico)          | `values-es-rMX`       |
+| `et`      | Estonian                  | `values-et`           |
+| `fa`      | Persian / Farsi           | `values-fa`           |
+| `fi`      | Finnish                   | `values-fi`           |
+| `fil`     | Filipino                  | `values-fil`          |
+| `fr`      | French                    | `values-fr`           |
+| `fr-ca`   | French (Canada)           | `values-fr-rCA`       |
+| `he`      | Hebrew                    | `values-iw`           |
+| `hi`      | Hindi                     | `values-hi`           |
+| `hr`      | Croatian                  | `values-hr`           |
+| `hu`      | Hungarian                 | `values-hu`           |
+| `id`      | Indonesian                | `values-in`           |
+| `it`      | Italian                   | `values-it`           |
+| `ja`      | Japanese                  | `values-ja`           |
+| `kk`      | Kazakh                    | `values-kk`           |
+| `ko`      | Korean                    | `values-ko`           |
+| `lt`      | Lithuanian                | `values-lt`           |
+| `lv`      | Latvian                   | `values-lv`           |
+| `ms`      | Malay                     | `values-ms`           |
+| `nb`      | Norwegian Bokmål          | `values-nb`           |
+| `nl`      | Dutch                     | `values-nl`           |
+| `pl`      | Polish                    | `values-pl`           |
+| `pt`      | Portuguese                | `values-pt`           |
+| `pt-br`   | Portuguese (Brazil)       | `values-pt-rBR`       |
+| `ro`      | Romanian                  | `values-ro`           |
+| `ru`      | Russian                   | `values-ru`           |
+| `sk`      | Slovak                    | `values-sk`           |
+| `sl`      | Slovenian                 | `values-sl`           |
+| `sr`      | Serbian                   | `values-sr`           |
+| `sv`      | Swedish                   | `values-sv`           |
+| `th`      | Thai                      | `values-th`           |
+| `tr`      | Turkish                   | `values-tr`           |
+| `uk`      | Ukrainian                 | `values-uk`           |
+| `vi`      | Vietnamese                | `values-vi`           |
+| `zh-cn`   | Chinese (Simplified)      | `values-zh`           |
+| `zh-hk`   | Chinese (Hong Kong)       | `values-zh-rHK`       |
+| `zh-tw`   | Chinese (Traditional)     | `values-zh-rTW`       |
+
+Note: `he` (Hebrew) and `id` (Indonesian) map to legacy Android folder codes `values-iw` and
+`values-in` respectively — the plug-in handles this conversion automatically.
+
 ## iOS alternative
 If you want a similar solution for your iOS projects, check this out: [poeditor-parser-swift](https://github.com/hyperdevs-team/poeditor-parser-swift)
 
